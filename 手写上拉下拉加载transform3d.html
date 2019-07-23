@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, viewport-fit=cover, initial-scale=1,maximum-scale=1, user-scalable=no" />
+		<title></title>
+		<style>
+			html,body,ul {
+				margin: 0;
+				padding: 0;
+			}
+			ul>li{
+				display: flex;
+				height: 50px;
+				width: 100%;
+				align-items: center;
+				border-top:1px solid #c8c7cc ;
+			}
+			#text{
+				position: fixed;
+				z-index: 999;
+				top: 0px;
+				width: 100%;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="pullrefresh">
+			<div id="app">
+				<!-- <div class="upSlider">
+					下拉加载更多数据
+				</div> -->
+				<ul id="item">
+					<li>a</li>
+					<li>b</li>
+					<li>c</li>
+					<li>d</li>
+				</ul>
+				<!-- <div class="downSlider">
+					上拉加载更多数据
+				</div> -->
+			</div>
+		</div>
+	<div id="text"></div>
+
+	</body>
+</html>
+<script type="text/javascript">
+
+	(function (){
+		var slider = function(elme,topSilder=()=>{},bottomSlider=()=>{},topTips='下拉加载数据',bottomtips='正在加载'){
+			//上拉下拉父元素
+			this.sliderElm = document.getElementById(elme);
+			this.HtmlDom = document.documentElement;
+			this.windowDom = window;
+			this.tipsElm = this.sliderElm.parentNode;
+			//下拉触发回调的距离
+			this.distance = 0;
+			 //上拉加载提示框
+			this.elmTipsT = null ;
+			  //下拉加载提示框
+			this.elmTipsB = null ;
+			//上拉下拉提示文本
+			this.tipsTextT=topTips;
+			this.tipsTextB=bottomtips;
+			//获取开始下拉的位置
+			this.startPoint = null;
+			//获取移动的位置
+			this.movePoint = null;
+			this.isLock = false;
+			this.isDone = false;
+			this.downLock = false;
+			//这两个变量的作用在于防止二次滑动，在第一次滑动没有达到指定距离而触发回调的时候，会强制进行回弹，此时isLock被设置为fasle，防止二次滑动。
+			//滑动后数据加载完成之前不允许有第二次的滑动，避免来触发第二次的回调函数。故而isDone是用来控制触发回调的状态的，isDOne为true时候，证明还没有触发回调，可以进行滑动，当触发回调之后，会将isDone设置为fasle，在回调完成前，禁止进行滑动，进而再次触发回调。
+			//如果滑动不到距离，那么会将状态复原，如果滑动到达需要距离，那么会进行回调事件次数调用的限制，然后在回调完成后再进行复原。
+
+			//下拉加载回调
+			this.topSilder = topSilder;
+			//上拉加载回调
+			this.bottomSlider = bottomSlider;
+			this.initSlider();
+			this.initCss();
+			//触摸开始
+			this.sliderElm.addEventListener('touchstart',this.touchStart.bind(this),false);
+			//触摸移动
+			this.sliderElm.addEventListener('touchmove',this.touchMove.bind(this),false);
+			//触摸结束
+			this.sliderElm.addEventListener('touchend',this.touchEnd.bind(this),false);
+		}
+		slider.prototype.initSlider = function(){
+			this.elmTipsT = document.createElement('div');
+			this.elmTipsB = document.createElement('div');
+			this.elmTipsT.setAttribute('class','upSlider');
+			this.elmTipsB.setAttribute('class','downSlider');
+			this.sliderElm.setAttribute('class','silder');
+			this.elmTipsT.innerHTML = `<img src='./images/pull.png' class='topPull-logo'><span>`+this.tipsTextT+`</span>`;
+			this.elmTipsB.innerHTML = `<img src='./images/loading3.png' class='bottomPull-logo'><span>`+this.tipsTextB+`</span>`;
+			let first = this.sliderElm.firstChild;
+			this.tipsElm.insertBefore(this.elmTipsT, this.tipsElm.firstChild);
+			this.tipsElm.appendChild(this.elmTipsB, first);
+		};
+		slider.prototype.initCss = function(){
+			let cssElm = document.createElement('style');
+			cssElm.innerHTML+= `.upSlider{
+				height:60px;
+				text-align: center;
+				line-height:60px;
+				display:none;
+				position: absolute;
+				width:100%;
+				display: none;
+				justify-content: center;
+
+			}`
+			cssElm.innerHTML+= `.downSlider{
+				height:60px;
+				text-align: center;
+				line-height:60px;
+				display:none;
+				position: relative;
+				width:100%;
+				display: none;
+				justify-content: center;
+
+			}`
+			cssElm.innerHTML+= `.silder{
+				width:100%;
+				transform: translate3d(0px,${this.distance}px,0px);
+				position: relative;
+				z-index:1;
+				background:#fff
+			}
+			.topPull-logo{
+				width: 20px;
+				height: 20px;
+				transform: rotate(180deg);
+				margin-top: 20px;
+			}
+
+			.bottomPull-logo{
+				width: 20px;
+				height: 20px;
+				margin-top: 20px;
+				animation: haha1 .8s linear infinite;
+			}
+			`
+			cssElm.innerHTML+= `.loading{
+				width: 20px;
+				height: 20px;
+				margin-top: 20px;
+				animation: haha1 .8s linear infinite;
+			}`
+			cssElm.innerHTML+= `@keyframes haha1 {
+				    0%{
+				        transform: rotate(0deg) scale(1);
+				    }
+				    50%{
+				        transform: rotate(180deg) scale(1);
+				    }
+				    100%{
+				        transform: rotate(360deg) scale(1);
+				    }
+
+				}`
+			document.head.appendChild(cssElm);
+		};
+		slider.prototype.back =  function(tips){
+
+
+			//一般都是下拉展示
+			if(tips){
+				document.getElementsByClassName('downSlider')[0].innerHTML = `${tips}`;
+				this.isLock = false;
+				this.downLock = true;
+			}else{
+				this.setTransform(0);
+				//this.setTransition(0.26);
+				if(!this.downLock){
+					document.getElementsByClassName('downSlider')[0].style.display = 'none';
+				}
+				document.getElementsByClassName('upSlider')[0].style.display = 'none';
+				this.isLock = false;
+			}
+
+		};
+		slider.prototype.setTransform = function(posision){
+			this.sliderElm.style.webkitTransform = `translate3d(0px,${posision/4}px,0px)`;
+			this.sliderElm.style.transform = `translate3d(0px,${posision/4}px,0px)`;
+
+
+		};
+		slider.prototype.setTransition = function(time){
+			this.sliderElm.style.webkitTransition = `all ${time}s`;
+			this.sliderElm.style.transition = `all ${time}s`;
+		};
+		slider.prototype.touchStart = function(e = window.event){
+			if(this.sliderElm.scrollTop<=0 && !this.isLock){
+				this.startPoint = e.touches[0];
+				this.isLock = true;
+				this.isDone = true;
+			}
+		};
+		slider.prototype.touchMove =  function(e = window.event){
+			this.movePoint = e.touches[0];
+			let _this=this;
+			this.setTransition(0);
+			//let time = null;
+			touchPage(_this);
+			function touchPage(_this){
+				//alert(_this.HtmlDom.pageYOffset);
+				let text = document.getElementById('text');
+				if(_this.windowDom.pageYOffset===0 && _this.isDone ){
+						let startY = _this.startPoint.pageY;
+						let moveY = _this.movePoint.pageY;
+						if(moveY-startY>0){
+							let h =0;
+							moveY-startY > 200 ? h = 60 : h= (moveY-startY)/4
+							document.getElementsByClassName('upSlider')[0].style.display = 'flex';
+							document.getElementsByClassName('topPull-logo')[0].style.transition = `all 1s`;
+							//document.getElementsByClassName('upSlider')[0].style.height = h+'px';
+							//document.getElementsByClassName('upSlider')[0].style.lineHeight = h+'px';
+							if(moveY-startY>=200){
+								document.getElementsByClassName('topPull-logo')[0].style.transform = `rotate(0deg)`;
+								document.getElementsByClassName('topPull-logo')[0].style.transition = `all .3s`;
+								document.getElementsByClassName('upSlider')[0].childNodes[1].innerHTML = '释放加载更多数据';
+							}else{
+								document.getElementsByClassName('topPull-logo')[0].src = './images/pull.png';
+								document.getElementsByClassName('topPull-logo')[0].style.transform = `rotate(180deg)`;
+								document.getElementsByClassName('upSlider')[0].childNodes[1].innerHTML = '下拉加载数据';
+								document.getElementsByClassName('topPull-logo')[0].classList.remove("loading");
+							}
+						}
+						if (startY < moveY ) {
+							e.preventDefault();
+							//_this.setTransition(0.26);
+							_this.setTransform(moveY-startY);
+						}
+					}
+				if(_this.windowDom.pageYOffset + _this.HtmlDom.clientHeight +10 >= _this.HtmlDom.scrollHeight && _this.isDone && !_this.downLock){
+						let startY = _this.startPoint.pageY;
+						let moveY = _this.movePoint.pageY;
+						if(_this.movePoint.pageY - _this.startPoint.pageY<-180){
+							document.getElementsByClassName('downSlider')[0].style.display = 'flex';
+						}
+						if (startY > moveY) {
+							e.preventDefault();
+							//_this.setTransition(0.26);
+							_this.setTransform(moveY-startY);
+						}
+					}
+			}
+			//});
+		};
+		slider.prototype.touchEnd = function(e = window.event){
+			let time = null;
+			let _this = this;
+			time = setTimeout(()=>{
+				clearTimeout(time);
+				if(_this.isDone){
+					_this.isDone = false;
+					if(_this.movePoint.pageY - _this.startPoint.pageY > 240 ){
+						document.getElementsByClassName('upSlider')[0].childNodes[1].innerHTML = '正在加载';
+						document.getElementsByClassName('topPull-logo')[0].src = './images/loading3.png';
+						document.getElementsByClassName('topPull-logo')[0].classList.add("loading");
+						_this.setTransition(0.26);
+						_this.setTransform(240);
+						_this.topSilder();
+					}else if(_this.movePoint.pageY - _this.startPoint.pageY < -180 && !this.downLock){
+						_this.setTransition(0.26);
+						_this.setTransform(0);
+						_this.bottomSlider();
+					}else{
+						_this.back();
+						console.log('aaa')
+					}
+				}
+			},200);
+		};
+		this.slider = slider;
+	})()
+	let itemBox = document.getElementById('item');
+	let first = itemBox.firstChild;
+	let lastChild = item.lastChild;
+	let upIndex =0;
+	var sliderBox =  new slider('app',function(){
+		if(upIndex<100){
+			for(let i =0; i <20 ; i++){
+				upIndex ++
+				let str =document.createElement('li');
+
+				str.innerHTML=`item${upIndex}`
+				itemBox.insertBefore(str,first);
+			}
+		}
+
+
+		setTimeout(()=>{
+			this.back();
+		 },1000)
+		//this.back();
+
+	} ,function(){
+
+			let str=''
+			for(let i =0; i <20 ; i++){
+				let str =document.createElement('li');
+
+				str.innerHTML=`item${i}`
+				itemBox.appendChild(str,first);
+			}
+		setTimeout(()=>{
+			this.back('没有更多数据了');
+		},2000)
+	})
+
+	// const overscroll = function(el) {
+	// 	el.addEventListener('touchstart', function() {
+	// 		var top = el.scrollTop;
+	// 		var totalScroll = el.scrollHeight;
+	// 		var currentScroll = top + el.offsetHeight;
+	// 		if (top === 0) {
+	// 			el.scrollTop = 1;
+	// 		} else if (currentScroll === totalScroll) {
+	// 			el.scrollTop = top - 1;
+	// 		}
+	// 	});
+	// 	el.addEventListener('touchmove', function(evt) {
+	// 		if (el.offsetHeight < el.scrollHeight) {
+	// 			evt._isScroller = true;
+	// 		}
+	// 	});
+	// };
+	// overscroll(document.querySelector('#item'));// 需要滚动的区域类名：如：.scroll
+	// const wrap = document.querySelector('#pullrefresh');  //页面最外层的类名如：.wrap
+	// wrap.addEventListener('touchmove', function(evt) {
+	// 	if (!evt._isScroller) {
+	// 		evt.preventDefault();
+	// 	}
+	// }, { passive: false });
+</script>
